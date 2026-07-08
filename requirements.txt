@@ -1,0 +1,32 @@
+# -*- coding: utf-8 -*-
+# pip install -r requirements.txt
+
+# ===== LangChain 生态(核心 RAG 框架) =====
+langchain==1.3.10              # 主框架:提供 Chain / Prompt / Memory / Retriever 等核心抽象
+langgraph==1.2.6              # 基于图的工作流编排,构建有状态、可循环的 Agent/RAG 流程
+langchain-community==0.4.2    # 社区集成包:向量库、文档加载器、Embedding 等第三方适配
+langchain-openai==1.3.2       # OpenAI 集成:ChatOpenAI / OpenAIEmbeddings
+
+# ===== 文档解析(数据加载层) =====
+pypdf==6.13.3                  # 解析 PDF,提取文本
+markdown==3.10                 # 解析 Markdown 为结构化文本/HTML
+unstructured==0.23.1         # 通用文档加载:HTML / Word / PPT / 邮件等多格式统一处理
+
+# ===== 向量存储与检索 =====
+chromadb>=1.4.1              # 开源向量数据库,存储 Embedding 并支持相似度检索
+langchain-chroma==1.1.0       # LangChain 对 Chroma 的官方集成,提供 Chroma 向量存储接口
+
+# ===== LLM 服务 SDK =====
+dashscope==1.25.23                     # 阿里云通义千问(DashScope)官方 SDK,调用大模型与 Embedding
+
+# ===== Web 服务 / API 层 =====
+fastapi==0.138.0              # 异步 Web 框架,将 RAG 流程暴露为 HTTP API
+uvicorn==0.49.0               # ASGI 服务器,运行 FastAPI 应用
+python-multipart             # 解析 multipart/form-data,支持文件上传
+
+# ===== 数据库 / 配置 =====
+SQLAlchemy==2.0.48           # ORM,管理 SQLite 中的文档元信息表
+python-dotenv                # 从 .env 加载环境变量(密钥等)
+
+# ===== 日志组件 =====
+loguru
