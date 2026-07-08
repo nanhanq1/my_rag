@@ -15,6 +15,13 @@ WEB_DIR = BASE_DIR / "web"
 def index():
     return FileResponse(WEB_DIR / "index.html")
 
+@app.get("/students")
+def get_students():
+    return [
+        {"id": 1, "name": "张三"},
+        {"id": 2, "name": "李四"},
+        {"id": 3, "name": "王五"},
+    ]
 
 # 托管前端静态资源，访问路径：/static/css/style.css
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
