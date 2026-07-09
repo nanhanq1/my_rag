@@ -1,8 +1,11 @@
+import json
 import os
+import uuid
 from pathlib import Path
 
 from fastapi import FastAPI
 from openai import OpenAI
+from pydantic import BaseModel
 from starlette.responses import FileResponse, StreamingResponse
 from starlette.staticfiles import StaticFiles
 
@@ -15,8 +18,41 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # 前端目录
 WEB_DIR = BASE_DIR / "web"
 
-@app.get("/chat")
-def chat(question: str):
+chat_service = ChatService()
+
+class ChatRequest(BaseModel):
+    message: str
+    thread_id: str
+
+
+@app.post("/chat")
+def chat(req: ChatRequest):
+    logger.info(f"聊天请求: {req.message}")
+    logger.info(f"线程ID: {req.thread_id}")
+
+    thread_id = req.thread_id or f"sess-{uuid.uuid4().hex[:12]}"
+
+    async def stream_response():
+        try:
+            # astream_chat 产出结构化事件（{"sources": ...} / {"content": ...}），直接序列化
+            async for event in chat_service.astream_chat(req.message, thread_id=thread_id):
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+            yield "data: [DONE]\n\n"
+        except Exception:
+            # 不向客户端回吐原始异常（可能含路径/SQL/栈帧），只返回通用消息 + error_id 便于排查
+            error_id = uuid.uuid4().hex
+            logger.exception("SSE 对话失败 error_id=%s", error_id)
+            yield f"data: {json.dumps({'error': '服务器内部错误，请联系管理员并提供错误编号', 'error_id': error_id}, ensure_ascii=False)}\n\n"
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no"
+    }
+    return StreamingResponse(stream_response(), media_type="text/event-stream", headers=headers)
+
+# /chat?question=xxx
+@app.get("/chat2")
+def chat2(question: str):
     logger.info(f"聊天请求: {question}")
     client = OpenAI(
         # 若没有配置环境变量，请用百炼API Key将下行替换为：api_key="sk-xxx"
