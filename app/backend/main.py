@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from starlette.responses import FileResponse, StreamingResponse
 from starlette.staticfiles import StaticFiles
 
+from app.backend.db.session import init_db
 from app.backend.logger import logger
 from app.backend.service.chat_service import ChatService
 
@@ -18,6 +19,9 @@ app = FastAPI(title="RAG企业知识库", version="1.0.0")
 BASE_DIR = Path(__file__).resolve().parent.parent
 # 前端目录
 WEB_DIR = BASE_DIR / "web"
+
+# 初始化数据库
+init_db()
 
 chat_service = ChatService()
 
