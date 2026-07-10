@@ -29,29 +29,32 @@ class ChatService:
        )
 
        # 会话记忆检查点，会话记忆
-       self.checkpoint = InMemorySaver()
+       self.checkpointer = InMemorySaver()
 
        # Agent
        self.agent = create_agent(
            model=self.model,
            tools=[],
-           checkpoint=self.checkpoint,
+           checkpointer=self.checkpointer,
            system_prompt=SYSTEM_PROMPT
        )
 
 
     async def astream_chat(self, message, thread_id):
         logger.info(f"聊天请求: {message}")
-        agent_config = {"configuration": {"thread_id": thread_id}}
+        agent_config = {"configurable": {"thread_id": thread_id}}
 
         # 流式生成问答
         async for msg, _meta in self.agent.astream(
       {"messages": [{"role": "user", "content": message}]},
-            agent_config=agent_config,
-            stream=True,
-            stream_options={"include_usage": True}
+            agent_config,
+            stream_mode="messages"
         ):
-            yield {"content": msg}
+            logger.info(f"{msg=}")
+            content = getattr(msg, "content", None)
+            if not content:
+                continue
+            yield {"content": content}
 
 
 
