@@ -2,8 +2,10 @@ import json
 import os
 import uuid
 from pathlib import Path
+from typing import Optional, List
 
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
+from langgraph_sdk.auth.exceptions import HTTPException
 from openai import OpenAI
 from pydantic import BaseModel
 from starlette.responses import FileResponse, StreamingResponse
@@ -12,6 +14,7 @@ from starlette.staticfiles import StaticFiles
 from app.backend.db.session import init_db
 from app.backend.logger import logger
 from app.backend.service.chat_service import ChatService
+from app.backend.service.document_service import DocumentService
 
 app = FastAPI(title="RAG企业知识库", version="1.0.0")
 
@@ -24,6 +27,41 @@ WEB_DIR = BASE_DIR / "web"
 init_db()
 
 chat_service = ChatService()
+document_service = DocumentService()
+
+
+# ==================== 文档上传接口 ===============
+@app.get("/documents")
+def list_documents(keyword: Optional[str] = None, page: int = 1, page_size: int = 10):
+    return document_service.list(keyword, page, page_size)
+
+@app.post("/documents/upload")
+def upload_document(files: List[UploadFile] = File(...)):
+    results = []
+    for file in files:
+        try:
+            info = document_service.upload(file)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        results.append(info)
+
+    return {"results":  results}
+
+@app.delete("/documents/{doc_id}")
+def delete_document(doc_id: int):
+    ok = document_service.delete(doc_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="文档不存在")
+
+    return {"deleted": doc_id}
+
+
+
+
+
+
+
+# ==================== 对话接口 ===================
 
 class ChatRequest(BaseModel):
     message: str
