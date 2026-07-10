@@ -10,6 +10,7 @@ from starlette.responses import FileResponse, StreamingResponse
 from starlette.staticfiles import StaticFiles
 
 from app.backend.logger import logger
+from app.backend.service.chat_service import ChatService
 
 app = FastAPI(title="RAG企业知识库", version="1.0.0")
 
