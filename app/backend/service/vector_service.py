@@ -16,6 +16,7 @@ from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.backend.config import settings
+from app.backend.logger import logger
 
 
 def load_document(file_path):
@@ -84,7 +85,9 @@ class VectorService:
 
     def delete_by_doc_id(self, doc_id):
         """按 doc_id 删除向量库中的文档。"""
-        data = self.vector_store.get(where={"doc_id": str(doc_id)})
+        data = self.vector_store.get(where={"doc_id": doc_id})
+        logger.info(doc_id)
+        logger.info(f"删除向量库数据：{data}")
         ids = data.get("ids", []) or []
         if ids:
             self.vector_store.delete(ids=ids)
