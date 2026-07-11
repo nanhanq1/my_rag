@@ -144,6 +144,9 @@ class DocumentService:
             if not doc:
                 return False
 
+            # 删除向量
+            self.vector_service.delete_by_doc_id(doc_id)
+
             # 删除磁盘文件
             if doc.storage_path and os.path.exists(doc.storage_path):
                 try:

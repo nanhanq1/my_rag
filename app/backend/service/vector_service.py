@@ -84,6 +84,10 @@ class VectorService:
 
     def delete_by_doc_id(self, doc_id):
         """按 doc_id 删除向量库中的文档。"""
-        pass
+        data = self.vector_store.get(where={"doc_id": str(doc_id)})
+        ids = data.get("ids", []) or []
+        if ids:
+            self.vector_store.delete(ids=ids)
+        return len(ids)
 
 
