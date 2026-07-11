@@ -50,7 +50,10 @@ class DocumentService:
                 f"不支持的文件类型: {ext}（支持 {', '.join(settings.supported_extensions)}）"
             )
 
-        size = len(file.file.read())
+        # 只读一次：file.file.read() 会消费整个上传流，第二次再 read() 得到空字节，
+        # 落盘文件会是 0 字节（PDF 会抛 EmptyFileError，TXT 则静默存入空内容）
+        content = file.file.read()
+        size = len(content)
         max_bytes = settings.max_file_size_mb * 1024 * 1024
         if size > max_bytes:
             raise ValueError(f"文件大小超过限制（最大 {settings.max_file_size_mb} MB）")
@@ -81,7 +84,7 @@ class DocumentService:
             stored_name = f"{uuid.uuid4().hex}{ext}"
             storage_path = os.path.join(settings.documents_save_path, stored_name)
             with open(storage_path, "wb") as f:
-                f.write(file.file.read())
+                f.write(content)
 
             doc = Document(
                 original_filename=file.filename,
