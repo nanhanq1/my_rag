@@ -50,8 +50,6 @@ class DocumentService:
                 f"不支持的文件类型: {ext}（支持 {', '.join(settings.supported_extensions)}）"
             )
 
-        # 只读一次：file.file.read() 会消费整个上传流，第二次再 read() 得到空字节，
-        # 落盘文件会是 0 字节（PDF 会抛 EmptyFileError，TXT 则静默存入空内容）
         content = file.file.read()
         size = len(content)
         max_bytes = settings.max_file_size_mb * 1024 * 1024
