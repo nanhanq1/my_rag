@@ -5,9 +5,9 @@ from langgraph.checkpoint.memory import InMemorySaver
 from app.backend.config import settings
 from app.backend.logger import logger
 
-SYSTEM_PROMPT = """你是一个专业的企业知识库助手。"""
+SYSTEM_PROMPT1 = """你是一个专业的企业知识库助手。"""
 
-SYSTEM_PROMPT1 = """你是一个专业的企业知识库助手。回答企业知识类问题时，必须严格基于消息中提供的“企业知识库上下文”。
+SYSTEM_PROMPT = """你是一个专业的企业知识库助手。回答企业知识类问题时，必须严格基于消息中提供的“企业知识库上下文”。
 核心规则：
 1. 回答企业知识类问题时，除非用户明确要求，否则绝对不能使用知识库上下文以外的知识回答。
 2. 如果用户没有明确要求使用知识库以外的知识回答，且知识库上下文中完全没有相关信息，必须准确回复："知识库中没有找到与您的问题相关的内容。"
@@ -22,7 +22,8 @@ SYSTEM_PROMPT1 = """你是一个专业的企业知识库助手。回答企业知
 
 class ChatService:
 
-    def __init__(self):
+    def __init__(self, vector_service):
+       self.vector_service = vector_service
        # 大语言模型对象
        self.model = ChatOpenAI(
            model=settings.openai_model_name,
@@ -46,9 +47,15 @@ class ChatService:
         logger.info(f"聊天请求: {message}")
         agent_config = {"configurable": {"thread_id": thread_id}}
 
+        context, sources = await self.vector_service.asearch(message)
+        user_input = f"以下是从企业知识库检索到的上下文：\n{context}\n\n用户问题：{message}"
+        # 如果检索到相关内容，先发sources给前端
+        if sources:
+            yield {"sources": sources}
+
         # 流式生成问答
         async for msg, _meta in self.agent.astream(
-      {"messages": [{"role": "user", "content": message}]},
+      {"messages": [{"role": "user", "content": user_input}]},
             agent_config,
             stream_mode="messages"
         ):

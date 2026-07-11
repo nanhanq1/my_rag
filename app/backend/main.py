@@ -28,7 +28,7 @@ WEB_DIR = BASE_DIR / "web"
 init_db()
 
 vector_service = VectorService()
-chat_service = ChatService()
+chat_service = ChatService(vector_service)
 document_service = DocumentService(vector_service)
 
 

@@ -8,6 +8,7 @@ VectorService：负责文档向量化与向量库的增删查。
   - 按 doc_id 删除文档对应的全部向量
   - 相似度检索（供对话服务作为 RAG 工具使用）
 """
+import asyncio
 import os.path
 
 from langchain_chroma import Chroma
@@ -71,7 +72,7 @@ class VectorService:
         chunks = self.splitter.split_documents(documents)
 
         for chunk in chunks:
-            chunk.metadata["doc_id"] = doc_id
+            chunk.metadata["doc_id"] = str(doc_id)
             chunk.metadata["source"] = origin_filename
         if chunks:
             self.vector_store.add_documents(chunks)
@@ -79,13 +80,49 @@ class VectorService:
         return len(chunks)
 
 
+    async def asearch(self, query):
+        """异步检索：在线程池中执行同步 search，避免阻塞事件循环。"""
+        return await asyncio.to_thread(self.search, query)
+
     def search(self, query):
-        """向量库检索。"""
-        pass
+        """相似度检索。
+
+        仅保留相关度分数不低于阈值的结果，过滤掉不相关的命中，
+        使上层"知识库中没有找到"的判断更可靠。
+
+        返回二元组 (context, sources)：
+            context: 拼接后的上下文文本；无相关结果时为"未检索到相关信息。"
+            sources: 命中来源列表（按相关度排序、按文档去重），每项为
+                     {"doc_id": ..., "source": 文件名, "score": 分数}
+        """
+
+        docs = self.vector_store.similarity_search_with_relevance_scores(query, settings.top_k)
+
+        # 打印每条命中的相关度分数，便于观察分布、校准阈值
+        logger.info("检索 query=%r，阈值=%.3f，命中 %d 条：", query, settings.score_threshold, len(docs))
+        for i, (doc, score) in enumerate(docs, 1):
+            preview = doc.page_content[:30].replace("\n", " ")
+
+        relevant = [(doc, score) for doc, score in docs if score >= settings.score_threshold]
+        context = "\n\n".join(doc.page_content for doc, _ in relevant)
+
+        # 提取来源并按文档去重（保留每个文档的最高分）
+        sources = []
+        seen = set()
+        for doc, score in relevant:
+            doc_id = doc.metadata.get("doc_id")
+            source = doc.metadata.get("source")
+            key = (doc_id, source)
+            if key in seen:
+                continue
+            seen.add(key)
+            sources.append({"doc_id": doc_id, "source": source, "score": round(float(score), 4)})
+
+        return (context if context else "未检索到相关信息。", sources)
 
     def delete_by_doc_id(self, doc_id):
         """按 doc_id 删除向量库中的文档。"""
-        data = self.vector_store.get(where={"doc_id": doc_id})
+        data = self.vector_store.get(where={"doc_id": str(doc_id)})
         logger.info(doc_id)
         logger.info(f"删除向量库数据：{data}")
         ids = data.get("ids", []) or []
