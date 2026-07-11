@@ -6,7 +6,7 @@ from typing import Optional, List
 
 from fastapi import FastAPI, File, UploadFile
 from langgraph_sdk.auth.exceptions import HTTPException
-from openai import OpenAI
+from openai import OpenAI, vector_stores
 from pydantic import BaseModel
 from starlette.responses import FileResponse, StreamingResponse
 from starlette.staticfiles import StaticFiles
@@ -15,6 +15,7 @@ from app.backend.db.session import init_db
 from app.backend.logger import logger
 from app.backend.service.chat_service import ChatService
 from app.backend.service.document_service import DocumentService
+from app.backend.service.vector_service import VectorService
 
 app = FastAPI(title="RAG企业知识库", version="1.0.0")
 
@@ -26,8 +27,9 @@ WEB_DIR = BASE_DIR / "web"
 # 初始化数据库
 init_db()
 
+vector_service = VectorService()
 chat_service = ChatService()
-document_service = DocumentService()
+document_service = DocumentService(vector_service)
 
 
 # ==================== 文档上传接口 ===============

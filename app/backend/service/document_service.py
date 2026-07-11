@@ -30,7 +30,8 @@ _EXT_MIME = {
 
 
 class DocumentService:
-    def __init__(self):
+    def __init__(self, vector_service):
+        self.vector_service = vector_service
         os.makedirs(settings.documents_save_path, exist_ok=True)
 
     # ---------- 上传 ----------
@@ -92,6 +93,16 @@ class DocumentService:
             session.commit()
             session.refresh(doc)
 
+            # 向量化入库
+            try:
+                self.vector_service.add_file(storage_path, doc.id, file.filename)
+            except Exception:
+                # 向量化失败则回滚数据库记录与磁盘文件，保持一致性
+                session.delete(doc)
+                session.commit()
+                if os.path.exists(storage_path):
+                    os.remove(storage_path)
+                raise
 
             return {**doc.to_dict(), "deduplicated": False}
 

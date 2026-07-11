@@ -10,8 +10,10 @@ VectorService：负责文档向量化与向量库的增删查。
 """
 import os.path
 
+from langchain_chroma import Chroma
 from langchain_community.document_loaders import TextLoader, PyPDFLoader, CSVLoader
 from langchain_community.embeddings import DashScopeEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.backend.config import settings
 
@@ -35,12 +37,22 @@ class VectorService:
            model=settings.embedding_model,
            dashscope_api_key=settings.openai_api_key,
        )
-
+       # 向量库
+       self.vector_store = Chroma(
+           persist_directory=settings.chroma_path,
+           embedding_function=self.embedding_model,
+           collection_metadata={"hnsw:space": "cosine"},  # 使用cosine计算相似度
+       )
+       # 文档拆分器
+       self.splitter = RecursiveCharacterTextSplitter(
+           chunk_size=settings.chunk_size,
+           chunk_overlap=settings.chunk_overlap,
+           separators=["\n\n", "\n", "。", "，", " ", ""],  # 分块分隔符
+       )
 
 
     def add_file(self, file_path, doc_id, origin_filename):
         """加载单个文件 -> 拆分 -> 向量化并写入向量库。
-
         每个分块写入 metadata：doc_id（数据库记录 id）与 source（原始文件名），
         其中 doc_id 用于后续按文档删除。返回写入的分块数量。
         chunks = [
@@ -54,7 +66,16 @@ class VectorService:
             )
         ]
         """
-        pass
+        documents = load_document(file_path)
+        chunks = self.splitter.split_documents(documents)
+
+        for chunk in chunks:
+            chunk.metadata["doc_id"] = doc_id
+            chunk.metadata["source"] = origin_filename
+        if chunks:
+            self.vector_store.add_documents(chunks)
+
+        return len(chunks)
 
 
     def search(self, query):
